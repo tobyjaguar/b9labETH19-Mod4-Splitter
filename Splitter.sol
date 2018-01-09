@@ -28,7 +28,7 @@ contract Splitter {
     function getBalance() 
         public 
         view 
-        returns(bool success, uint256 _balance) {
+        returns(bool success, uint256 contractBalance) {
             return (true, this.balance);
         
     }
@@ -49,24 +49,25 @@ contract Splitter {
    function getBalanceAlice()
     public
     view
-    returns(bool success, uint256 _balance) {
+    returns(bool success, uint256 aliceBalance) {
         return (true, Alice.balance);
     }
    
    function getBalanceBob()
     public
     view
-    returns(bool success, uint256 _balance) {
+    returns(bool success, uint256 bobBalance) {
         return (true, Bob.balance);
     }
     
     function getBalanceCarol()
     public
     view
-    returns(bool success, uint256 _balance) {
+    returns(bool success, uint256 carolBalance) {
         return (true, Carol.balance);
     }
    
+   //Do I need this for the contract to receive funds??
    function()
    public
    payable {
