@@ -5,7 +5,7 @@
 //we can see the balances of Alice, Bob and Carol on the web page
 //we can send ether to it from the web page
 
-pragma solidity ^0.4.16;
+pragma solidity ^0.4.13;
 
 contract Splitter {
     
