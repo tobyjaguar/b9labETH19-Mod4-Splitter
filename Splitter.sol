@@ -20,6 +20,7 @@ contract Splitter {
             require(alice > 0);
             require(bob > 0);
             require(carol > 0);
+            
             owner = msg.sender;
             Alice = alice;
             Bob = bob;
@@ -30,14 +31,24 @@ contract Splitter {
         public 
         payable 
         returns(bool success) {
+            uint256 balanceBefore;
+            uint256 balanceAfter;
+            uint256 splitAmount;
             require(msg.value > 0);
             require(msg.sender == Alice);
             require(msg.value%2 == 0);
-            Carol.transfer(msg.value/2);
-            Bob.transfer(msg.value/2);
+            
+            splitAmount = msg.value;
+            balanceBefore = this.balance;
+            
+            Carol.transfer(splitAmount/2);
+            balanceAfter = this.balance;
+            
+            if(balanceAfter == balanceBefore / 2) {
+            Bob.transfer(splitAmount/2);
             return true;
-       
+            }
+            
    }
    
-    
 }
