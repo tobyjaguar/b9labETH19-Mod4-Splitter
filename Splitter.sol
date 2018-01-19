@@ -15,8 +15,6 @@ contract Splitter {
     address public Carol;
 
     
-    //uint256 public contractBalance; //how to not overshadow this?
-    
     function Splitter(address alice, address bob, address carol) 
         public {
             owner = msg.sender;
@@ -25,53 +23,18 @@ contract Splitter {
             Carol = carol;
     } 
     
-    function getBalance() 
-        public 
-        view 
-        returns(bool success, uint256 contractBalance) {
-            return (true, this.balance);
-        
-    }
-    
    function split() 
         public 
         payable 
         returns(bool success) {
             require(msg.value > 0);
-            if(msg.sender == Alice) {
+            require(msg.sender == Alice);
+            require(msg.value%2 == 0);
             Carol.transfer(msg.value/2);
             Bob.transfer(msg.value/2);
             return true;
-       }
-   }
-   
-   //Get balance of Alice, Bob, and Carol
-   function getBalanceAlice()
-    public
-    view
-    returns(bool success, uint256 aliceBalance) {
-        return (true, Alice.balance);
-    }
-   
-   function getBalanceBob()
-    public
-    view
-    returns(bool success, uint256 bobBalance) {
-        return (true, Bob.balance);
-    }
-    
-    function getBalanceCarol()
-    public
-    view
-    returns(bool success, uint256 carolBalance) {
-        return (true, Carol.balance);
-    }
-   
-   //Do I need this for the contract to receive funds??
-   function()
-   public
-   payable {
        
    }
+   
     
 }
