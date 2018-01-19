@@ -17,6 +17,9 @@ contract Splitter {
     
     function Splitter(address alice, address bob, address carol) 
         public {
+            require(alice > 0);
+            require(bob > 0);
+            require(carol > 0);
             owner = msg.sender;
             Alice = alice;
             Bob = bob;
