@@ -14,9 +14,9 @@ contract Splitter {
     address public Bob; 
     address public Carol;
 
-	uint256 public splitAmount;
-	bool sentBob;
-	bool sentCarol;
+    uint256 public splitAmount;
+    bool sentBob;
+    bool sentCarol;
     
     function Splitter(address alice, address bob, address carol) 
         public {
@@ -30,38 +30,38 @@ contract Splitter {
             Carol = carol;
     } 
     
-   function split() 
-        public 
-        payable 
-        returns(bool success) 
-	{
-            require(msg.value > 0);
-            require(msg.sender == Alice);
-            require(msg.value%2 == 0);
+    function split() 
+    public 
+    payable 
+    returns(bool success) 
+    {
+        require(msg.value > 0);
+        require(msg.sender == Alice);
+        require(msg.value%2 == 0);
             
-            splitAmount = msg.value/2;
-		return true;
+        splitAmount = msg.value/2;
+	return true;
             
    }
    
-	function withdraw()
-	public
-	returns(bool success)
+   function withdraw()
+   public
+   returns(bool success)
+   {
+	require(msg.sender == Bob || msg.sender == Carol);
+	require(splitAmount != 0);
+	if(msg.sender == Bob && sentBob == false) 
 	{
-		require(msg.sender == Bob || msg.sender == Carol);
-		require(splitAmount != 0);
-		if(msg.sender == Bob && sentBob == false) 
-		{
-			Bob.transfer(splitAmount);
-			sentBob = true;
-			return true;
-		}
-		if(msg.sender == Carol && sentCarol == false)
-		{
-			Carol.transfer(splitAmount);
-			sentCarol = true;
-			return ture;
-		}
+		Bob.transfer(splitAmount);
+		sentBob = true;
+		return true;
 	}
+	if(msg.sender == Carol && sentCarol == false)
+	{
+		Carol.transfer(splitAmount);
+		sentCarol = true;
+		return true;
+	}
+   }
 
 }
