@@ -23,6 +23,8 @@ contract Splitter {
     MemberFunds public bobFunds;
     MemberFunds public carolFunds;
 
+    bool public hasSplit;
+
     function Splitter(address alice, address bob, address carol)
     public {
         require(alice != 0);
@@ -51,8 +53,10 @@ contract Splitter {
         require(msg.value > 0);
         require(msg.sender == aliceAddy);
         require(msg.value%2 == 0);
+        require(!hasSplit);
         require(!bobFunds.sent && !carolFunds.sent);
 
+        hasSplit = true;
         bobFunds.amount = msg.value/2;
         carolFunds.amount = msg.value/2;
         return true;
