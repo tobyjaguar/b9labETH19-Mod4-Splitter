@@ -7,61 +7,81 @@
 
 pragma solidity ^0.4.13;
 
-contract Splitter {
-    
-    address public owner;
-    address public Alice;
-    address public Bob; 
-    address public Carol;
 
-    uint256 public splitAmount;
-    bool sentBob;
-    bool sentCarol;
-    
-    function Splitter(address alice, address bob, address carol) 
-        public {
-            require(alice > 0);
-            require(bob > 0);
-            require(carol > 0);
-            
-            owner = msg.sender;
-            Alice = alice;
-            Bob = bob;
-            Carol = carol;
-    } 
-    
-    function split() 
-    public 
-    payable 
-    returns(bool success) 
+contract Splitter {
+
+    struct MemberFunds {
+        uint256 amount;
+        bool    sent;
+    }
+
+    address public owner;
+    address public aliceAddy;
+    address public bobAddy;
+    address public carolAddy;
+
+    MemberFunds public bobFunds;
+    MemberFunds public carolFunds;
+
+    function Splitter(address alice, address bob, address carol)
+    public {
+        require(alice != 0);
+        require(bob != 0);
+        require(carol != 0);
+
+        owner = msg.sender;
+        aliceAddy = alice;
+        bobAddy = bob;
+        carolAddy = carol;
+    }
+
+    function getBalance()
+    public
+    constant
+    returns(bool success, uint256 _balance)
+    {
+        return (true, this.balance);
+    }
+
+    function split()
+    public
+    payable
+    returns(bool success)
     {
         require(msg.value > 0);
-        require(msg.sender == Alice);
+        require(msg.sender == aliceAddy);
         require(msg.value%2 == 0);
-            
-        splitAmount = msg.value/2;
-	return true;
-            
-   }
-   
-   function withdraw()
-   public
-   returns(bool success)
-   {
-	require(msg.sender == Bob || msg.sender == Carol);
-	require(splitAmount != 0);
-	if(msg.sender == Bob && sentBob == false) 
-	{
-		Bob.transfer(splitAmount);
-		sentBob = true;
-		return true;
-	}
-	if(msg.sender == Carol && sentCarol == false)
-	{
-		Carol.transfer(splitAmount);
-		sentCarol = true;
-		return true;
-	}
-   }
+        require(!bobFunds.sent && !carolFunds.sent);
+
+        bobFunds.amount = msg.value/2;
+        carolFunds.amount = msg.value/2;
+        return true;
+    }
+
+    function withdrawBob()
+    public
+    returns(bool success)
+    {
+        require(msg.sender == bobAddy);
+        require(bobFunds.amount > 0 && !bobFunds.sent);
+
+        bobFunds.sent = true;
+        bobAddy.transfer(bobFunds.amount);
+        return true;
+
+    }
+
+    function withdrawCarol()
+    public
+    returns (bool success)
+    {
+        require(msg.sender == carolAddy);
+        require(carolFunds.amount > 0 && !carolFunds.sent);
+
+        carolFunds.sent = true;
+        carolAddy.transfer(carolFunds.amount);
+        return true;
+
+    }
 
 }
