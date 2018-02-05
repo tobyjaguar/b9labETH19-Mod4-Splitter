@@ -25,13 +25,19 @@ contract Splitter {
 
     bool public hasSplit;
 
-    function Splitter(address alice, address bob, address carol)
+    function Splitter()
     public {
+        owner = msg.sender;
+    }
+
+    function setMembers(address alice, address bob, address carol)
+    public
+    {
+        require(msg.sender == owner);
         require(alice != 0);
         require(bob != 0);
         require(carol != 0);
 
-        owner = msg.sender;
         aliceAddy = alice;
         bobAddy = bob;
         carolAddy = carol;

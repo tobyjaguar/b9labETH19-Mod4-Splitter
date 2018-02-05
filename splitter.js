@@ -8,123 +8,84 @@ contract('Splitter', function(accounts) {
   var bobAddy = accounts[2];
   var carolAddy = accounts[3];
 
-  var contractInstance;
   var amount = 1000;
-  var aliceBalance;
-  var bobBalance;
-  var carolBalance;
 
   beforeEach(function() {
-    return Splitter.new(aliceAddy, bobAddy, carolAddy, { from: owner })
+    return Splitter.new({ from: owner })
     .then(function(instance) {
       contractInstance = instance;
-      web3.eth.sendTransaction({ from: owner, to: contractInstance.address,
-      value: amount});
-      aliceBalance = web3.eth.getBalance(aliceAddy);
-      bobBalance = web3.eth.getBalance(bobAddy);
-      carolBalance = web3.eth.getBalance(carolAddy);
-    });
-  });
 
-/*
-  beforeEach(function() {
-    return web3.fromWei(web3.eth.getBalance(aliceAddy), "ether")
-    .then(function(result) {
-      balance = result;
     });
   });
-*/
 
   //test owner
-  it("should be owned by owner", function() {
+  it("Should be owned by owner", function() {
     return contractInstance.owner({from: owner})
     .then(function(_owner) {
-      assert.strictEqual(_owner, owner, "Contract is not owned by owner");
+      assert.equal(_owner.toString(10), owner.toString(10), "Contract is not owned by owner");
     });
   });
 
-  it("should pass Alice's address to alice", function() {
-    return contractInstance.alice({from: owner})
-    .then(function(_alice) {
-      assert.strictEqual(_alice, aliceAddy, "Contract did not pass Alice's address");
-    });
+  //members should be set
+  it("Should have set members", function() {
+    return contractInstance.setMembers(aliceAddy, bobAddy, carolAddy, {from: owner});
+    assert.equal(contractInstance.aliceAddy.valueOf(), aliceAddy, "Alice's address did not get set");
+    assert.equal(contractInstance.bobAddy.valueOf(), bobAddy, "Bob's address did not get set");
+    assert.equal(contractInstance.carolAddy.valueOf(), carolAddy, "Carol did not get set");
   });
 
-  it("should pass Bob's address to bob", function() {
-    return contractInstance.bob({from: owner})
-    .then(function(_bob) {
-      assert.strictEqual(_bob, bobAddy, "Contract did not pass Bob's address");
-    });
-  });
-
-  it("should pass Carol's address to carol", function() {
-    return contractInstance.carol({from: owner})
-    .then(function(_carol) {
-      assert.strictEqual(_carol, carolAddy, "Contract did not pass Carol's address");
-    });
-  });
-
-  //test getBalance
-  it("should get a contract Balance of 1000 wei", function() {
-    return contractInstance.getBalance({from: owner})
-    .then(function(balance) {
-      assert.equal(balance[1],amount, "Contract balance is not correct");
-    });
-  });
-
-  //test getBalanceAlice()
-  it("Should get the correct balance of Alice's address", function() {
-    var aliceContractBalance;
-    return contractInstance.getBalanceAlice({from: owner})
-    .then(function(result) {
-      //aliceContractBalance = result.toNumber();
-      assert.equal(result[1].toString(10), aliceBalance.toString(10), "Alice's balance doesn't match");
-    });
-  });
-
-  //test getBalanceBob()
-  it("Should get the correct balance of Bob's address", function() {
-    var bobContractBalance;
-    return contractInstance.getBalanceBob({from: owner})
-    .then(function(result) {
-      assert.equal(result[1].toString(10), bobBalance.toString(10), "Bob's balance doesn't match");
-    });
-  });
-
-  //test getBalanceCarol()
-  it("Should get the correct balance of Carol's address", function() {
-    var carolContractBalance;
-    return contractInstance.getBalanceCarol({from: owner})
-    .then(function(result) {
-      assert.equal(result[1].toString(10), carolBalance.toString(10), "Carol's balance doesn't match");
-    });
-  });
-
-  it("should split Alice's transaction amount", function() {
-
-    var bobFinalBalance;
-    var carolFinalBalance;
-    var bobPlusAmt
-    var carolPlusAmt
-
-    bobPlusAmt = bobBalance.toNumber() + amount / 2;
-    carolPlusAmt = carolBalance.toNumber() + amount / 2;
-
+  //test split
+  it("Should split an amount sent by Alice", function() {
+    return contractInstance.setMembers(aliceAddy, bobAddy, carolAddy, {from: owner});
     return contractInstance.split({from: aliceAddy, value: amount})
-      .then(function() {
-        return contractInstance.getBalanceBob({from: owner})
-          .then(function(_balance) {
-            bobFinalBalance = _balance[1].toString(10);
-              return contractInstance.getBalanceCarol({from: owner})
-                .then(function(_balance) {
-                carolFinalBalance = _balance[1].toString(10);
+    .then(function(_result) {
+      assert.isTrue(_result, "Split() did not return true");
+      assert.isTrue(contractInstance.hasSplit, "hasSplit did not get set to true");
+      assert.equal(contractInstance.bobFunds.amount, amount / 2, "Bob's funds did not get set to half the amount");
+      assert.equal(contractInstance.carolFunds.amount, amount / 2, "Carols's funds did not get set to half the amount");
+    })
+  });
 
-                assert.equal(bobFinalBalance, bobPlusAmt, "Bob's balance didn't work");
-                assert.equal(carolFinalBalance, carolPlusAmt, "Carol's balance didn't work");
-              });
-          });
-        });
-      });
+  //test withdraw function for Bob
+  it("Should withdraw Bob's funds from contract", function() {
+    var bobBalanceBefore;
+    var bobBalanceNow;
+    bobBalanceBefore = bobAddy.balance;
+
+    return contractInstance.setMembers(aliceAddy, bobAddy, carolAddy, {from: owner});
+    return contractInstance.split({from: aliceAddy, value: amount});
+    return contractInstance.withdrawBob({from: bobAddy})
+    .then(function(_result) {
+      bobBalanceNow = bobAddy.balance;
+      assert.isTrue(_result, "withdraw did not return true");
+      assert.isTrue(contractInstance.bobFunds.sent, "Bob's sent param did not get set to true");
+      assert.equal(bobBalanceNow, bobBalanceBefore + amount / 2, "Bob's balance is not correct");
+    });
+    return contractInstance.getBalance.call({from: owner})
+    .then(function(_return) {
+      assert.equal(_return, amount / 2, "Contract balance is not half the initial amount");
+    });
+  });
+
+  //test withdraw functions
+  it("Should withdraw funds from contract", function() {
+    var carolBalanceBefore;
+    var carolBalanceNow;
+    carolBalanceBefore = carolAddy.balance;
+
+    return contractInstance.setMembers(aliceAddy, bobAddy, carolAddy, {from: owner});
+    return contractInstance.split({from: aliceAddy, value: amount});
+    return contractInstance.withdrawCarol({from: carolAddy})
+    .then(function(_result) {
+      carolBalanceNow = carolAddy.balance;
+      assert.isTrue(_result, "withdraw did not return true");
+      assert.isTrue(contractInstance.carolFunds.sent, "Carol's sent param did not get set to true");
+      assert.equal(carolBalanceNow, carolBalanceBefore + amount / 2, "Carol's balance is not correct");
+    });
+    return contractInstance.getBalance.call({from: owner})
+    .then(function(_return) {
+      assert.equal(_return, amount / 2, "Contract balance is not half the initial amount");
+    });
+  });
 
 });
-
