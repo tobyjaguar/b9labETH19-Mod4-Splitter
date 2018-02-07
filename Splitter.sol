@@ -59,7 +59,6 @@ contract Splitter {
         require(msg.sender == aliceAddy);
         require(msg.value%2 == 0);
         require(!hasSplit);
-        //require(!bobFunds.sent && !carolFunds.sent);
 
         hasSplit = true;
         members[bobAddy].amount = msg.value/2;
