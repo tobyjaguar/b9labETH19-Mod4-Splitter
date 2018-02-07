@@ -4,9 +4,9 @@ var Splitter = artifacts.require("./Splitter.sol");
 contract('Splitter', function(accounts) {
 
   var owner = accounts[0];
-  var aliceAddy = accounts[1];
-  var bobAddy = accounts[2];
-  var carolAddy = accounts[3];
+  var aliceAddy = accounts[0];
+  var bobAddy = accounts[1];
+  var carolAddy = accounts[2];
 
   var amount = 1000;
 
@@ -54,7 +54,7 @@ contract('Splitter', function(accounts) {
 
     return contractInstance.setMembers(aliceAddy, bobAddy, carolAddy, {from: owner});
     return contractInstance.split({from: aliceAddy, value: amount});
-    return contractInstance.withdrawBob({from: bobAddy})
+    return contractInstance.requestWithdraw({from: bobAddy})
     .then(function(_result) {
       bobBalanceNow = bobAddy.balance;
       assert.isTrue(_result, "withdraw did not return true");
@@ -75,7 +75,7 @@ contract('Splitter', function(accounts) {
 
     return contractInstance.setMembers(aliceAddy, bobAddy, carolAddy, {from: owner});
     return contractInstance.split({from: aliceAddy, value: amount});
-    return contractInstance.withdrawCarol({from: carolAddy})
+    return contractInstance.requestWithdraw({from: carolAddy})
     .then(function(_result) {
       carolBalanceNow = carolAddy.balance;
       assert.isTrue(_result, "withdraw did not return true");

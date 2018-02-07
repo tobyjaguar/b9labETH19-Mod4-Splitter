@@ -12,16 +12,15 @@ contract Splitter {
 
     struct MemberFunds {
         uint256 amount;
-        bool    sent;
+        uint256 amountSent;
     }
+
+    mapping(address => MemberFunds) public members;
 
     address public owner;
     address public aliceAddy;
     address public bobAddy;
     address public carolAddy;
-
-    MemberFunds public bobFunds;
-    MemberFunds public carolFunds;
 
     bool public hasSplit;
 
@@ -60,38 +59,25 @@ contract Splitter {
         require(msg.sender == aliceAddy);
         require(msg.value%2 == 0);
         require(!hasSplit);
-        require(!bobFunds.sent && !carolFunds.sent);
+        //require(!bobFunds.sent && !carolFunds.sent);
 
         hasSplit = true;
-        bobFunds.amount = msg.value/2;
-        carolFunds.amount = msg.value/2;
+        members[bobAddy].amount = msg.value/2;
+        members[carolAddy].amount = msg.value/2;
         return true;
     }
 
-    function withdrawBob()
+    function requestWithdraw()
     public
     returns(bool success)
     {
-        require(msg.sender == bobAddy);
-        require(bobFunds.amount > 0 && !bobFunds.sent);
-
-        bobFunds.sent = true;
-        bobAddy.transfer(bobFunds.amount);
+        uint256 amountToSend = members[msg.sender].amount - members[msg.sender].amountSent;
+        require(hasSplit);
+        require(amountToSend != 0);
+        amountToSend = members[msg.sender].amount;
+        members[msg.sender].amountSent = amountToSend;
+        msg.sender.transfer(amountToSend);
         return true;
-
-    }
-
-    function withdrawCarol()
-    public
-    returns (bool success)
-    {
-        require(msg.sender == carolAddy);
-        require(carolFunds.amount > 0 && !carolFunds.sent);
-
-        carolFunds.sent = true;
-        carolAddy.transfer(carolFunds.amount);
-        return true;
-
     }
 
 }
