@@ -12,7 +12,6 @@ contract Splitter {
 
     struct MemberFunds {
         uint256 amount;
-        uint256 amountSent;
     }
 
     mapping(address => MemberFunds) public members;
@@ -70,11 +69,11 @@ contract Splitter {
     public
     returns(bool success)
     {
-        uint256 amountToSend = members[msg.sender].amount - members[msg.sender].amountSent;
+        uint256 amountToSend = members[msg.sender].amount;
         require(hasSplit);
         require(amountToSend != 0);
         amountToSend = members[msg.sender].amount;
-        members[msg.sender].amountSent = amountToSend;
+        members[msg.sender].amount = 0;
         msg.sender.transfer(amountToSend);
         return true;
     }
