@@ -10,16 +10,12 @@ pragma solidity ^0.4.13;
 
 contract Splitter {
 
-    struct MemberFunds {
-        uint256 amount;
-    }
-
-    mapping(address => MemberFunds) public members;
-
     address public owner;
     address public aliceAddy;
     address public bobAddy;
     address public carolAddy;
+    uint256 public bobAmount;
+    uint256 public carolAmount;
 
     bool public hasSplit;
 
@@ -60,21 +56,34 @@ contract Splitter {
         require(!hasSplit);
 
         hasSplit = true;
-        members[bobAddy].amount = msg.value/2;
-        members[carolAddy].amount = msg.value/2;
+        bobAmount = msg.value/2;
+        carolAmount = msg.value/2;
         return true;
     }
 
-    function requestWithdraw()
+    function bobWithdraw()
     public
     returns(bool success)
     {
-        uint256 amountToSend = members[msg.sender].amount;
+        require(msg.sender == bobAddy);
         require(hasSplit);
+        uint256 amountToSend = bobAmount;
         require(amountToSend != 0);
-        amountToSend = members[msg.sender].amount;
-        members[msg.sender].amount = 0;
-        msg.sender.transfer(amountToSend);
+        bobAmount = 0;
+        bobAddy.transfer(amountToSend);
+        return true;
+    }
+
+    function carolWithdraw()
+    public
+    returns(bool success)
+    {
+        require(msg.sender == carolAddy);
+        require(hasSplit);
+        uint256 amountToSend = carolAmount;
+        require(amountToSend != 0);
+        carolAmount = 0;
+        carolAddy.transfer(amountToSend);
         return true;
     }
 
