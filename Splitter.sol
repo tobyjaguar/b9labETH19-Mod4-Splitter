@@ -17,8 +17,6 @@ contract Splitter {
 
     mapping(address => uint256) public amountOf;
 
-    bool public hasSplit;
-
     function Splitter()
     public {
         owner = msg.sender;
@@ -45,16 +43,6 @@ contract Splitter {
         return (true, this.balance);
     }
 
-    function resetSplit()
-    public
-    returns(bool success)
-    {
-        require(msg.sender == owner);
-        require(hasSplit);
-        hasSplit = false;
-        return true;
-    }
-
     function split()
     public
     payable
@@ -63,11 +51,9 @@ contract Splitter {
         require(msg.value > 0);
         require(msg.sender == aliceAddy);
         require(msg.value%2 == 0);
-        require(!hasSplit);
 
-        hasSplit = true;
-        amountOf[bobAddy] = msg.value/2;
-        amountOf[carolAddy] = msg.value/2;
+        amountOf[bobAddy] += msg.value/2;
+        amountOf[carolAddy] += msg.value/2;
         return true;
     }
 
@@ -75,7 +61,6 @@ contract Splitter {
     public
     returns(bool success)
     {
-        require(hasSplit);
         uint256 amountToSend = amountOf[msg.sender];
         require(amountToSend != 0);
         amountOf[msg.sender] = 0;
