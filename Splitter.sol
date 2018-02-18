@@ -7,8 +7,10 @@
 
 pragma solidity ^0.4.13;
 
+import "./Stoppable.sol";
 
-contract Splitter {
+
+contract Splitter is Stoppable {
 
     address public owner;
     address public aliceAddy;
@@ -17,6 +19,10 @@ contract Splitter {
 
     mapping(address => uint256) public amountOf;
 
+    event LogSetMembers(address sender, address alice, address bob, address carol);
+    event LogSplit(address sender, uint256 amount);
+    event LogrequestWithdraw(address sender, uint256 amount);
+
     function Splitter()
     public {
         owner = msg.sender;
@@ -24,8 +30,10 @@ contract Splitter {
 
     function setMembers(address alice, address bob, address carol)
     public
+    onlyOwner
+    onlyIfRunning
+    returns(bool success)
     {
-        require(msg.sender == owner);
         require(alice != 0);
         require(bob != 0);
         require(carol != 0);
@@ -33,11 +41,15 @@ contract Splitter {
         aliceAddy = alice;
         bobAddy = bob;
         carolAddy = carol;
+
+        LogSetMembers(msg.sender, alice, bob, carol);
+        return true;
     }
 
     function getBalance()
     public
     constant
+    onlyIfRunning
     returns(bool success, uint256 _balance)
     {
         return (true, this.balance);
@@ -46,6 +58,7 @@ contract Splitter {
     function split()
     public
     payable
+    onlyIfRunning
     returns(bool success)
     {
         require(msg.value > 0);
@@ -54,17 +67,22 @@ contract Splitter {
 
         amountOf[bobAddy] += msg.value/2;
         amountOf[carolAddy] += msg.value/2;
+
+        LogSplit(msg.sender, msg.value);
         return true;
     }
 
     function requestWithdraw()
     public
+    onlyIfRunning
     returns(bool success)
     {
         uint256 amountToSend = amountOf[msg.sender];
         require(amountToSend != 0);
         amountOf[msg.sender] = 0;
         msg.sender.transfer(amountToSend);
+
+        LogrequestWithdraw(msg.sender, amountToSend);
         return true;
     }
 
