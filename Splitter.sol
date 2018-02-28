@@ -12,64 +12,54 @@ import "./Stoppable.sol";
 
 contract Splitter is Stoppable {
 
-    address public owner;
-    address public aliceAddy;
-    address public bobAddy;
-    address public carolAddy;
+    uint256 public balance;
 
-    mapping(address => uint256) public amountOf;
+    struct SplitMember {
+        address sender;
+        uint256 amount;
+    }
 
-    event LogSetMembers(address sender, address alice, address bob, address carol);
-    event LogSplit(address sender, uint256 amount);
-    event LogrequestWithdraw(address sender, uint256 amount);
+    mapping(address => SplitMember) public splitters;
+
+    event LogSplitMembers(address eSender, address eSplit1, address eSplit2, uint256 eSplitAmount);
+    event LogRequestWithdraw(address eRecipient, address eSender, uint256 eAmount);
 
     function Splitter()
     public {
-        owner = msg.sender;
+        //owner = msg.sender;
     }
 
-    function setMembers(address alice, address bob, address carol)
+    function splitMembers(address _split1, address _split2)
     public
     onlyOwner
     onlyIfRunning
+    payable
     returns(bool success)
     {
-        require(alice != 0);
-        require(bob != 0);
-        require(carol != 0);
+        require(msg.sender != 0);
+        require(msg.value > 0);
+        require(_split1 != 0);
+        require(_split2 != 0);
+        require(msg.value%2 == 0);
 
-        aliceAddy = alice;
-        bobAddy = bob;
-        carolAddy = carol;
+        splitters[_split1].sender = msg.sender;
+        splitters[_split1].amount = msg.value/2;
 
-        LogSetMembers(msg.sender, alice, bob, carol);
+        splitters[_split2].sender = msg.sender;
+        splitters[_split2].amount = msg.value/2;
+
+        balance += msg.value;
+
+        LogSplitMembers(msg.sender, _split1, _split2, msg.value/2);
         return true;
     }
 
     function getBalance()
     public
     constant
-    onlyIfRunning
     returns(bool success, uint256 _balance)
     {
-        return (true, this.balance);
-    }
-
-    function split()
-    public
-    payable
-    onlyIfRunning
-    returns(bool success)
-    {
-        require(msg.value > 0);
-        require(msg.sender == aliceAddy);
-        require(msg.value%2 == 0);
-
-        amountOf[bobAddy] += msg.value/2;
-        amountOf[carolAddy] += msg.value/2;
-
-        LogSplit(msg.sender, msg.value);
-        return true;
+        return (true, balance);
     }
 
     function requestWithdraw()
@@ -77,12 +67,13 @@ contract Splitter is Stoppable {
     onlyIfRunning
     returns(bool success)
     {
-        uint256 amountToSend = amountOf[msg.sender];
-        require(amountToSend != 0);
-        amountOf[msg.sender] = 0;
+        require(splitters[msg.sender].amount != 0);
+        uint256 amountToSend = splitters[msg.sender].amount;
+        splitters[msg.sender].amount = 0;
+        balance -= amountToSend;
         msg.sender.transfer(amountToSend);
 
-        LogrequestWithdraw(msg.sender, amountToSend);
+        LogRequestWithdraw(msg.sender, splitters[msg.sender].sender, amountToSend);
         return true;
     }
 
