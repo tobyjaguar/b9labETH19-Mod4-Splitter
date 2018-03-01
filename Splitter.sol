@@ -31,7 +31,6 @@ contract Splitter is Stoppable {
 
     function splitMembers(address _split1, address _split2)
     public
-    onlyOwner
     onlyIfRunning
     payable
     returns(bool success)
@@ -43,10 +42,10 @@ contract Splitter is Stoppable {
         require(msg.value%2 == 0);
 
         splitters[_split1].sender = msg.sender;
-        splitters[_split1].amount = msg.value/2;
+        splitters[_split1].amount += msg.value/2;
 
         splitters[_split2].sender = msg.sender;
-        splitters[_split2].amount = msg.value/2;
+        splitters[_split2].amount += msg.value/2;
 
         balance += msg.value;
 
