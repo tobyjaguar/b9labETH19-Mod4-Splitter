@@ -1,5 +1,12 @@
 //Splitter Test File
+Promise = require("bluebird");
 var Splitter = artifacts.require("./Splitter.sol");
+
+web3.eth.expectedException = require("../utils/expectedException.js");
+//const sequentialPromise = require("../utils/sequentialPromise.js");
+//web3.eth.makeSureHasAtLeast = require("../utils/makeSureHasAtLeast.js");
+//web3.eth.makeSureAreUnlocked = require("../utils/makeSureAreUnlocked.js");
+web3.eth.getTransactionReceiptMined = require("../utils/getTransactionReceiptMined.js");
 
 contract('Splitter', function(accounts) {
 
@@ -28,26 +35,24 @@ contract('Splitter', function(accounts) {
   });
 
   //members should be set
-  it("Should have set members", function() {
+  it("Should be able to split amount amount two members", function() {
 
     return contractInstance.splitMembers(receiver1, receiver2, {from: owner, value: amount})
     .then(result => {
       assert.equal(result.receipt.status, true, "splitMembers did not return true");
-      return contractInstance.splitters.call(receiver1, {from: owner});
+      return contractInstance.splitAmounts.call(receiver1, {from: owner});
     })
     .then(result => {
       //console.log("splitters: " + result[0] + "\n" + result[1]);
-      assert.equal(result[0], owner, "splitters did not return sender correctly");
-      assert.equal(result[1], amount / 2, "splitters did not return amount correctly");
-      return contractInstance.splitters.call(receiver2, {from: owner});
+      assert.equal(result, (amount / 2), "splitters did not return amount correctly");
+      return contractInstance.splitAmounts.call(receiver2, {from: owner});
     })
     .then(result => {
-      assert.equal(result[0], owner, "splitters did not return sender correctly");
-      assert.equal(result[1], amount / 2, "splitters did not return amount correctly");
+      assert.equal(result, amount / 2, "splitters did not return amount correctly");
       return contractInstance.getBalance.call({from: owner});
     })
     .then(result => {
-      assert.equal(result[1].valueOf(), amount, "contract balance did not return correctly");
+      assert.equal(result.valueOf(), amount, "contract balance did not return correctly");
     });
   });
 
@@ -62,7 +67,7 @@ contract('Splitter', function(accounts) {
       return contractInstance.getBalance.call({from: owner});
     })
     .then(result => {
-      balanceBefore = parseInt(result[1].valueOf());
+      balanceBefore = parseInt(result.valueOf());
       return contractInstance.requestWithdraw({from: receiver1});
     })
     .then(result => {
@@ -70,13 +75,12 @@ contract('Splitter', function(accounts) {
       //console.log("withdraw event: " + result.logs[0].args.amount);
       assert.equal(result.receipt.status, true, "withdraw did not return true");
       assert.equal(result.logs[0].args.eRecipient, receiver1, "Recipient's address did not emit correctly from withdraw event");
-      assert.equal(result.logs[0].args.eSender, owner, "Owner's address did not emit correctly from withdraw event");
       assert.equal(result.logs[0].args.eAmount, amount / 2, "Recipient's amount did not emit correctly from withdraw event");
       return contractInstance.getBalance.call({from: owner});
     })
     .then(result => {
       //console.log(JSON.stringify(result, null, 4));
-      balanceNow = parseInt(result[1].valueOf());
+      balanceNow = parseInt(result.valueOf());
       assert.equal(balanceNow, balanceBefore - (amount / 2), "Recipient's balance did not reconcile correctly");
       return contractInstance.requestWithdraw({from: receiver2});
     })
@@ -85,7 +89,7 @@ contract('Splitter', function(accounts) {
       return contractInstance.getBalance.call({from: owner});
     })
     .then(result => {
-      assert.equal(result[1].valueOf(), 0, "contract balance did not return a zero balance");
+      assert.equal(result.valueOf(), 0, "contract balance did not return a zero balance");
     });
     //end test
   });
@@ -95,10 +99,11 @@ contract('Splitter', function(accounts) {
 
     var balanceBefore;
     var balanceNow;
+    var balanceReceiver3Before;
 
     return contractInstance.getBalance.call({from: owner})
     .then(balance => {
-      balanceBefore = balance[1].valueOf();
+      balanceBefore = balance.valueOf();
       return contractInstance.splitMembers(receiver1, receiver2, {from: owner, value: amount});
     })
     .then(result => {
@@ -107,41 +112,99 @@ contract('Splitter', function(accounts) {
     })
     .then(result => {
       assert.equal(result.receipt.status, true, "withdraw did not return true");
-      return contractInstance.splitters.call(receiver1, {from: owner});
+      return contractInstance.splitAmounts.call(receiver1, {from: owner});
     })
     .then(result => {
-      assert.equal(result[1], 0, "Receiver1's balance did not return correctly");
+      assert.equal(result, 0, "Receiver1's balance did not return correctly");
+      return new Promise((resolve, reject) => {
+        web3.eth.getBalance(receiver3, (err, balance) => {
+          if (err) reject(err)
+          else resolve(balance)
+        });
+      });
+    })
+    .then(balance => {
+      balanceReceiver3Before = balance.valueOf();
       return contractInstance.splitMembers(receiver2, receiver3, {from: owner, value: amount});
     })
     .then(result => {
       assert.equal(result.receipt.status, true, "splitMembers did not return true");
-      return contractInstance.splitters.call(receiver2, {from: owner});
+      return contractInstance.splitAmounts.call(receiver2, {from: owner});
     })
     .then(result => {
-      assert.equal(result[1].valueOf(), ((amount / 2) + (amount / 2)), "Receiver2's balance did not return double the amount");
+      assert.equal(result.valueOf(), ((amount / 2) + (amount / 2)), "Receiver2's balance did not return double the amount");
       return contractInstance.requestWithdraw({from: receiver2});
     })
     .then(result => {
       assert.equal(result.logs[0].args.eAmount.valueOf(), ((amount / 2) + (amount / 2)), "Event withdraw did not return correctly");
-      return contractInstance.splitters.call(receiver2, {from: owner});
+      return contractInstance.splitAmounts.call(receiver2, {from: owner});
     })
     .then(result => {
-      assert.equal(result[1].valueOf(), 0, "Receiver2's balance did not return zero");
+      assert.equal(result.valueOf(), 0, "Receiver2's balance did not return zero");
       return contractInstance.requestWithdraw({from: receiver3});
     })
     .then(result => {
       assert.equal(result.logs[0].args.eAmount.valueOf(), (amount / 2), "Event withdraw did not return correctly");
-      return contractInstance.splitters.call(receiver3, {from: owner});
+      return contractInstance.splitAmounts.call(receiver3, {from: owner});
     })
     .then(result => {
-      assert.equal(result[1].valueOf(), 0, "Receiver3's balance did not return zero");
+      assert.equal(result.valueOf(), 0, "Receiver3's balance did not return zero");
       return contractInstance.getBalance.call({from: owner});
     })
     .then(balance => {
-      balanceNow = balance[1].valueOf();
+      balanceNow = balance.valueOf();
       assert.equal(balanceNow, balanceBefore, "Contract's balance did not return correctly");
+      return new Promise((resolve, reject) => {
+        web3.eth.getBalance(receiver3, (err, balance) => {
+          if (err) reject(err)
+          else resolve(balance)
+        });
+      });
+    })
+    .then(balance => {
+      assert.isTrue(balance.valueOf() > balanceReceiver3Before, "Receiver3's balance did not return correctly");
     });
+    //end test
+  });
 
+  it("Should not let non-owner stop the contract", function() {
+
+    return web3.eth.expectedException(
+      () => contractInstance.runSwitch(0, {from: sender2}),
+    3000000);
+    //end test
+  });
+
+  //test for failed cases
+  it("Should not split among members if not running", function() {
+
+    return contractInstance.runSwitch(0, {from: owner})
+    .then(result => {
+      assert.equal(result.receipt.status, true, "runSwitch did not return true");
+      return contractInstance.running.call({from: owner})
+    })
+    .then(result => {
+      assert.isFalse(result, "Running did not return false");
+      return web3.eth.expectedException(
+        () => contractInstance.splitMembers(receiver1, receiver2, {from: owner}),
+        3000000);
+    });
+    //end test
+  });
+
+  it("Should not allow withdrawals when not running", function() {
+
+    return contractInstance.splitMembers(receiver1, receiver2, {from: owner, value: amount})
+    .then(result => {
+      assert.equal(result.receipt.status, true, "splitMembers did not return true");
+      return contractInstance.runSwitch(0, {from: owner});
+    })
+    .then(result => {
+      assert.equal(result.receipt.status, true, "runSwitch did not return true");
+      return web3.eth.expectedException(
+        () => contractInstance.requestWithdraw({from: receiver1}),
+      3000000);
+    });
     //end test
   });
 

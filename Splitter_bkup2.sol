@@ -12,22 +12,21 @@ import "./Stoppable.sol";
 
 contract Splitter is Stoppable {
 
-    mapping(address => uint256) public splitAmounts;
+    uint256 public balance;
+
+    struct SplitMember {
+        address sender;
+        uint256 amount;
+    }
+
+    mapping(address => SplitMember) public splitters;
 
     event LogSplitMembers(address eSender, address eSplit1, address eSplit2, uint256 eSplitAmount);
-    event LogRequestWithdraw(address eRecipient, uint256 eAmount);
+    event LogRequestWithdraw(address eRecipient, address eSender, uint256 eAmount);
 
     function Splitter()
     public {
         //owner = msg.sender;
-    }
-
-    function getBalance()
-    public
-    constant
-    returns (uint256 balance)
-    {
-        return this.balance;
     }
 
     function splitMembers(address _split1, address _split2)
@@ -42,12 +41,24 @@ contract Splitter is Stoppable {
         require(_split2 != 0);
         require(msg.value%2 == 0);
 
-        splitAmounts[_split1] += msg.value/2;
+        splitters[_split1].sender = msg.sender;
+        splitters[_split1].amount += msg.value/2;
 
-        splitAmounts[_split2] += msg.value/2;
+        splitters[_split2].sender = msg.sender;
+        splitters[_split2].amount += msg.value/2;
+
+        balance += msg.value;
 
         LogSplitMembers(msg.sender, _split1, _split2, msg.value/2);
         return true;
+    }
+
+    function getBalance()
+    public
+    constant
+    returns(bool success, uint256 _balance)
+    {
+        return (true, balance);
     }
 
     function requestWithdraw()
@@ -55,12 +66,13 @@ contract Splitter is Stoppable {
     onlyIfRunning
     returns(bool success)
     {
-        require(splitAmounts[msg.sender] != 0);
-        uint256 amountToSend = splitAmounts[msg.sender];
-        splitAmounts[msg.sender] = 0;
+        require(splitters[msg.sender].amount != 0);
+        uint256 amountToSend = splitters[msg.sender].amount;
+        splitters[msg.sender].amount = 0;
+        balance -= amountToSend;
         msg.sender.transfer(amountToSend);
 
-        LogRequestWithdraw(msg.sender, amountToSend);
+        LogRequestWithdraw(msg.sender, splitters[msg.sender].sender, amountToSend);
         return true;
     }
 
