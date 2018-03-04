@@ -12,6 +12,7 @@ import "./Stoppable.sol";
 
 contract Splitter is Stoppable {
 
+    uint256 amountToSend;
     mapping(address => uint256) public splitAmounts;
 
     event LogSplitMembers(address eSender, address eSplit1, address eSplit2, uint256 eSplitAmount);
@@ -20,14 +21,6 @@ contract Splitter is Stoppable {
     function Splitter()
     public {
         //owner = msg.sender;
-    }
-
-    function getBalance()
-    public
-    constant
-    returns (uint256 balance)
-    {
-        return this.balance;
     }
 
     function splitMembers(address _split1, address _split2)
@@ -56,7 +49,7 @@ contract Splitter is Stoppable {
     returns(bool success)
     {
         require(splitAmounts[msg.sender] != 0);
-        uint256 amountToSend = splitAmounts[msg.sender];
+        amountToSend = splitAmounts[msg.sender];
         splitAmounts[msg.sender] = 0;
         msg.sender.transfer(amountToSend);
 
