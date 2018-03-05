@@ -1,5 +1,14 @@
+describe("Check withdrawals", function() {
 
-  it("Should withdraw recipient's funds from contract", function() {
+  beforeEach("Run the split", function() {
+    return contractInstance.splitMembers(receiver1, receiver2, {from: owner, value: amount})
+    .then( result => {
+      assert.equal(result.receipt.status, true, "splitMembers did not return true");;
+    });
+  })
+
+  it("Should withdraw receipient's funds from the contract", function() {
+    var hash;
     var gasPrice = 0;
     var gasUsed = 0;
     var gasConsumed = 0;
@@ -14,20 +23,27 @@
       });
     })
     .then(balance => {
-      console.log(JSON.stringify(balance, null, 4));
       balanceBefore = parseInt(balance.valueOf());
-      gasPrice = parseInt(web3.eth.gasPrice.valueOf());
-      return contractInstance.splitMembers(receiver1, receiver2, {from: owner, value: amount})
-    })
-    .then(result => {
-      assert.equal(result.receipt.status, true, "splitMembers did not return true");
       return contractInstance.requestWithdraw({from: receiver1});
     })
-    .then(result => {
-      gasUsed = parseInt(result.receipt.cumulativeGasUsed);
-      assert.equal(result.receipt.status, true, "withdraw did not return true");
-      assert.equal(result.logs[0].args.eRecipient, receiver1, "Recipient's address did not emit correctly from withdraw event");
-      assert.equal(result.logs[0].args.eAmount, amount / 2, "Recipient's amount did not emit correctly from withdraw event");
+    .then(txObj => {
+      hash = txObj.receipt.transactionHash;
+      gasUsed = txObj.receipt.gasUsed;
+      //console.log(JSON.stringify(tx, null, 4));
+      return new Promise((resolve, reject) => {
+        web3.eth.getTransaction(hash, (err, tx) => {
+          if (err) reject(err)
+          else resolve(tx)
+        });
+      })
+    })
+    .then(tx => {
+      gasPrice = parseInt(tx.gasPrice.valueOf());
+      console.log
+      (
+        "gasPrice: " + gasPrice + "\n" +
+        "gasUsed: " + gasUsed
+      );
       return new Promise((resolve, reject) => {
         web3.eth.getBalance(receiver1, (err, balance) => {
           if (err) reject(err)
@@ -37,18 +53,16 @@
     })
     .then(balance => {
       balanceNow = parseInt(balance.valueOf());
-      gasConsumed = (gasUsed * gasPrice);
-      sendAmount = (parseInt(amount) / 2);
-      //console.log(balanceNow - (balanceBefore + (parseInt(amount) / 2) - (allGasUsed*gasPrice)));
-      console.log("Now:    " + balanceNow + "\n" +
-        "Before: " + balanceBefore + "\n" +
-          "Gas: " + gasConsumed + "\n" +
-            "Amount: " + sendAmount + "\n" +
-              "Amount minus Gas: " + (sendAmount - gasConsumed) + "\n" +
-                "Balance Diff: " + (balanceNow - balanceBefore) + "\n" +
-                  "Leftover: " + ((sendAmount - gasConsumed) - (balanceNow - balanceBefore)));
-      //assert.equal(balanceNow, (balanceBefore + (sendAmount - gasConsumed)), "Receiver1's balance did not return correctly");
+      sendAmount = parseInt(amount) / 2;
+      gasConsumed = gasUsed * gasPrice;
+      console.log(
+        "Balance differnce: " + (balanceNow - balanceBefore) + "\n" +
+        "Amount - fee: " + (sendAmount - gasConsumed)
+      );
+      assert.equal(balanceNow.toString(10), (balanceBefore + (sendAmount - gasConsumed)).toString(10), "Receiver1's balance did not return correctly");
     });
-
-    //end tests
+    //end test
   });
+
+  //end describe
+});
