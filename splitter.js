@@ -1,12 +1,15 @@
 //Splitter Test File
 Promise = require("bluebird");
 var Splitter = artifacts.require("./Splitter.sol");
+var BigNumber = require('bignumber.js');
 
 web3.eth.expectedException = require("../utils/expectedException.js");
 //const sequentialPromise = require("../utils/sequentialPromise.js");
 //web3.eth.makeSureHasAtLeast = require("../utils/makeSureHasAtLeast.js");
 //web3.eth.makeSureAreUnlocked = require("../utils/makeSureAreUnlocked.js");
 web3.eth.getTransactionReceiptMined = require("../utils/getTransactionReceiptMined.js");
+
+Promise.promisifyAll(web3.eth, { suffix: "Promise" });
 
 contract('Splitter', function(accounts) {
 
@@ -66,10 +69,12 @@ contract('Splitter', function(accounts) {
       var hash;
       var gasPrice = 0;
       var gasUsed = 0;
-      var gasConsumed = 0;
+      var txFee = 0;
       var sendAmount = 0;
       var balanceBefore;
       var balanceNow;
+      var balance2Before;
+      var balance2Now;
 
       return new Promise((resolve, reject) => {
         web3.eth.getBalance(receiver1, (err, balance) => {
@@ -78,185 +83,134 @@ contract('Splitter', function(accounts) {
         });
       })
       .then(balance => {
-        balanceBefore = parseInt(balance.valueOf());
+        balanceBefore = balance;
         return contractInstance.requestWithdraw({from: receiver1});
       })
-      .then(tx => {
-        hash = tx.receipt.hash;
-        console.log(JSON.stringify(tx, null, 4)); 
+      .then(txObj => {
+        hash = txObj.receipt.transactionHash;
+        gasUsed = txObj.receipt.gasUsed;
+        //console.log(JSON.stringify(tx, null, 4));
+        return new Promise((resolve, reject) => {
+          web3.eth.getTransaction(hash, (err, tx) => {
+            if (err) reject(err)
+            else resolve(tx)
+          });
+        });
       })
+      .then(tx => {
+        gasPrice = tx.gasPrice;
+        console.log
+        (
+          "gasPrice: " + gasPrice + "\n" +
+          "gasUsed: " + gasUsed
+        );
+        return new Promise((resolve, reject) => {
+          web3.eth.getBalance(receiver1, (err, balance) => {
+            if (err) reject(err)
+            else resolve(balance)
+          });
+        });
+      })
+      .then(balance => {
+        balanceNow = balance;
+        sendAmount = amount/2;
+        txFee = gasUsed * gasPrice;
+        console.log(
+          "Balance differnce: " + balanceNow.minus(balanceBefore) + "\n" +
+          "Amount - fee: " + (sendAmount - txFee) + "\n" +
+          "delta: " + balanceNow.minus(balanceBefore).plus(sendAmount).minus(txFee)
+        );
+        assert.equal(balanceNow.toString(10), balanceBefore.plus(sendAmount).minus(txFee), "Receiver1's balance did not return correctly");
+        return web3.eth.getBalancePromise(receiver2);
+      })
+      .then(balance => {
+        balance2Before = balance;
+        return contractInstance.requestWithdraw({from: receiver2});
+      })
+      .then(txObj => {
+        hash = txObj.receipt.transactionHash;
+        gasUsed = txObj.receipt.gasUsed;
+        return web3.eth.getTransactionPromise(hash);
+      })
+      .then(tx => {
+        gasPrice = tx.gasPrice;
+        return web3.eth.getBalancePromise(receiver2);
+      })
+      .then(balance => {
+        balance2Now = balance.valueOf;
+        txFee = gasUsed * gasPrice;
+        console.log(
+          "Balance differnce: " + balanceNow.minus(balanceBefore) + "\n" +
+          "Amount - fee: " + (sendAmount - txFee) + "\n" +
+          "delta: " + balanceNow.minus(balanceBefore).plus(sendAmount).minus(txFee)
+        );
+        assert.equal(balanceNow.toString(10), balanceBefore.plus(sendAmount).minus(txFee).toString(10), "Receiver2's balance did not return correctly");
+      });
       //end test
     });
-
     //end describe
   });
-  /*
-  it("Should withdraw recipient's funds from contract", function() {
-    var gasPrice = 0;
+
+  it("Should split multiple members and withdraw multiple members", function() {
+    var hash;
     var gasUsed = 0;
-    var gasConsumed = 0;
+    var gasPrice = 0;
+    var txFee = 0;
     var sendAmount = 0;
-    var balanceBefore;
-    var balanceNow;
-
-    return new Promise((resolve, reject) => {
-      web3.eth.getBalance(receiver1, (err, balance) => {
-        if (err) reject(err)
-        else resolve(balance)
-      });
-    })
-    .then(balance => {
-      console.log(JSON.stringify(balance, null, 4));
-      balanceBefore = parseInt(balance.valueOf());
-      gasPrice = parseInt(web3.eth.gasPrice.valueOf());
-      return contractInstance.splitMembers(receiver1, receiver2, {from: owner, value: amount})
-    })
-    .then(result => {
-      assert.equal(result.receipt.status, true, "splitMembers did not return true");
-      return contractInstance.requestWithdraw({from: receiver1});
-    })
-    .then(result => {
-      gasUsed = parseInt(result.receipt.cumulativeGasUsed);
-      assert.equal(result.receipt.status, true, "withdraw did not return true");
-      assert.equal(result.logs[0].args.eRecipient, receiver1, "Recipient's address did not emit correctly from withdraw event");
-      assert.equal(result.logs[0].args.eAmount, amount / 2, "Recipient's amount did not emit correctly from withdraw event");
-      return new Promise((resolve, reject) => {
-        web3.eth.getBalance(receiver1, (err, balance) => {
-          if (err) reject(err)
-          else resolve(balance)
-        });
-      });
-    })
-    .then(balance => {
-      balanceNow = parseInt(balance.valueOf());
-      gasConsumed = (gasUsed * gasPrice);
-      sendAmount = (parseInt(amount) / 2);
-      //console.log(balanceNow - (balanceBefore + (parseInt(amount) / 2) - (allGasUsed*gasPrice)));
-      console.log("Now:    " + balanceNow + "\n" +
-        "Before: " + balanceBefore + "\n" +
-          "Gas: " + gasConsumed + "\n" +
-            "Amount: " + sendAmount + "\n" +
-              "Amount minus Gas: " + (sendAmount - gasConsumed) + "\n" +
-                "Balance Diff: " + (balanceNow - balanceBefore) + "\n" +
-                  "Leftover: " + ((sendAmount - gasConsumed) - (balanceNow - balanceBefore)));
-      //assert.equal(balanceNow, (balanceBefore + (sendAmount - gasConsumed)), "Receiver1's balance did not return correctly");
-    });
-
-    //end tests
-  });
-
-
-  //test withdraw function
-  it("Should withdraw recipient's funds from contract", function() {
-    var gasPrice;
-    var allGasUsed;
-    var balanceBefore;
-    var balanceNow;
+    var balanceReceiver1Before;
+    var balanceReceiver1Now;
+    var balanceReceiver2Before;
+    var balanceReceiver2Now;
 
     return contractInstance.splitMembers(receiver1, receiver2, {from: owner, value: amount})
     .then(result => {
-      console.log(result.receipt.cumulativeGas);
-      //allGasUsed += result.receipt.cumulativeGas;
       assert.equal(result.receipt.status, true, "splitMembers did not return true");
-      return contractInstance.getBalance.call({from: owner});
-    })
-    .then(result => {
-      balanceBefore = parseInt(result.valueOf());
-      return contractInstance.requestWithdraw({from: receiver1});
-    })
-    .then(result => {
-      //console.log(JSON.stringify(result, null, 4));
-      //console.log("withdraw event: " + result.logs[0].args.amount);
-      assert.equal(result.receipt.status, true, "withdraw did not return true");
-      assert.equal(result.logs[0].args.eRecipient, receiver1, "Recipient's address did not emit correctly from withdraw event");
-      assert.equal(result.logs[0].args.eAmount, amount / 2, "Recipient's amount did not emit correctly from withdraw event");
-      return contractInstance.getBalance.call({from: owner});
-    })
-    .then(result => {
-      //console.log(JSON.stringify(result, null, 4));
-      balanceNow = parseInt(result.valueOf());
-      assert.equal(balanceNow, balanceBefore - (amount / 2), "Recipient's balance did not reconcile correctly");
-      return contractInstance.requestWithdraw({from: receiver2});
-    })
-    .then(result => {
-      assert.equal(result.receipt.status, true, "withdraw did not return true");
-      return contractInstance.getBalance.call({from: owner});
-    })
-    .then(result => {
-      assert.equal(result.valueOf(), 0, "contract balance did not return a zero balance");
-    });
-    //end test
-  });
-
-  //test utility
-  it("Should split multiple members and withdraw multiple members", function() {
-
-    var balanceBefore;
-    var balanceNow;
-    var balanceReceiver3Before;
-
-    return contractInstance.getBalance.call({from: owner})
-    .then(balance => {
-      balanceBefore = balance.valueOf();
-      return contractInstance.splitMembers(receiver1, receiver2, {from: owner, value: amount});
-    })
-    .then(result => {
-      assert.equal(result.receipt.status, true, "splitMembers did not return true");
-      return contractInstance.requestWithdraw({from: receiver1});
-    })
-    .then(result => {
-      assert.equal(result.receipt.status, true, "withdraw did not return true");
-      return contractInstance.splitAmounts.call(receiver1, {from: owner});
-    })
-    .then(result => {
-      assert.equal(result, 0, "Receiver1's balance did not return correctly");
-      return new Promise((resolve, reject) => {
-        web3.eth.getBalance(receiver3, (err, balance) => {
-          if (err) reject(err)
-          else resolve(balance)
-        });
-      });
+      return web3.eth.getBalancePromise(receiver1);
     })
     .then(balance => {
-      balanceReceiver3Before = balance.valueOf();
+      balanceReceiver1Before = balance;
+      return contractInstance.requestWithdraw({from: receiver1});
+    })
+    .then(txObj => {
+      hash = txObj.receipt.transactionHash;
+      gasUsed = txObj.receipt.gasUsed;
+      assert.equal(txObj.receipt.status, true, "withdraw did not return true");
+      return web3.eth.getTransactionPromise(hash);
+    })
+    .then(tx => {
+      gasPrice = tx.gasPrice;
+      return web3.eth.getBalancePromise(receiver1);
+    })
+    .then(balance => {
+      balanceReceiver1Now = balance;
+      txFee = gasUsed * gasPrice;
+      sendAmount = amount/2;
+      assert.equal(balanceReceiver1Now.toString(10), balanceReceiver1Before.plus(sendAmount).minus(txFee).toString(10), "REceiver1's balance did not return correctly");
       return contractInstance.splitMembers(receiver2, receiver3, {from: owner, value: amount});
     })
     .then(result => {
       assert.equal(result.receipt.status, true, "splitMembers did not return true");
-      return contractInstance.splitAmounts.call(receiver2, {from: owner});
+      return web3.eth.getBalancePromise(receiver2);
     })
-    .then(result => {
-      assert.equal(result.valueOf(), ((amount / 2) + (amount / 2)), "Receiver2's balance did not return double the amount");
+    .then(balance => {
+      balanceReceiver2Before = balance;
       return contractInstance.requestWithdraw({from: receiver2});
     })
-    .then(result => {
-      assert.equal(result.logs[0].args.eAmount.valueOf(), ((amount / 2) + (amount / 2)), "Event withdraw did not return correctly");
-      return contractInstance.splitAmounts.call(receiver2, {from: owner});
+    .then(txObj => {
+      hash = txObj.receipt.transactionHash;
+      gasUsed = txObj.receipt.gasUsed;
+      assert.equal(txObj.receipt.status, true, "withdraw did not return true");
+      return web3.eth.getTransactionPromise(hash);
     })
-    .then(result => {
-      assert.equal(result.valueOf(), 0, "Receiver2's balance did not return zero");
-      return contractInstance.requestWithdraw({from: receiver3});
-    })
-    .then(result => {
-      assert.equal(result.logs[0].args.eAmount.valueOf(), (amount / 2), "Event withdraw did not return correctly");
-      return contractInstance.splitAmounts.call(receiver3, {from: owner});
-    })
-    .then(result => {
-      assert.equal(result.valueOf(), 0, "Receiver3's balance did not return zero");
-      return contractInstance.getBalance.call({from: owner});
+    .then(tx => {
+      gasPrice = tx.gasPrice;
+      return web3.eth.getBalancePromise(receiver2);
     })
     .then(balance => {
-      balanceNow = balance.valueOf();
-      assert.equal(balanceNow, balanceBefore, "Contract's balance did not return correctly");
-      return new Promise((resolve, reject) => {
-        web3.eth.getBalance(receiver3, (err, balance) => {
-          if (err) reject(err)
-          else resolve(balance)
-        });
-      });
-    })
-    .then(balance => {
-      assert.isTrue(balance.valueOf() > balanceReceiver3Before, "Receiver3's balance did not return correctly");
+      balanceReceiver2Now = balance;
+      txFee = gasUsed * gasPrice;
+      sendAmount = (amount/2)*2;
+      assert.equal(balanceReceiver2Now.toString(10), balanceReceiver2Before.plus(sendAmount).minus(txFee).toString(10), "Receiver2's balance did not return correctly");
     });
     //end test
   });
@@ -301,6 +255,6 @@ contract('Splitter', function(accounts) {
     });
     //end test
   });
-*/
+
 //end tests
 });
