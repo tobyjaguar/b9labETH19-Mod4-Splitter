@@ -65,7 +65,7 @@ contract('Splitter', function(accounts) {
       });
     })
 
-    it("Should withdraw receipient's funds from the contract", function() {
+    it("Should withdraw first receipient's funds from the contract", function() {
       var hash;
       var gasPrice = 0;
       var gasUsed = 0;
@@ -91,25 +91,41 @@ contract('Splitter', function(accounts) {
       })
       .then(tx => {
         gasPrice = tx.gasPrice;
+        /*
         console.log(
           "gasPrice: " + gasPrice + "\n" +
           "gasUsed: " + gasUsed
         );
+        */
         return web3.eth.getBalancePromise(receiver1);
       })
       .then(balance => {
         balanceNow = balance;
         sendAmount = amount/2;
         txFee = gasUsed * gasPrice;
+        /*
         console.log(
           "Balance differnce: " + balanceNow.minus(balanceBefore) + "\n" +
           "Amount - fee: " + (sendAmount - txFee) + "\n" +
           "delta: " + balanceNow.minus(balanceBefore).plus(sendAmount).minus(txFee) + "\n" +
           "nuDelta: " + balanceBefore.minus(balanceNow).plus(sendAmount).minus(txFee)
         );
+        */
         assert.equal(balanceNow.toString(10), balanceBefore.plus(sendAmount).minus(txFee), "Receiver1's balance did not return correctly");
-        return web3.eth.getBalancePromise(receiver2);
-      })
+      });
+      //end test
+    });
+
+    it("Should withdraw second receipient's funds from the contract", function() {
+      var hash;
+      var gasPrice = 0;
+      var gasUsed = 0;
+      var txFee = 0;
+      var sendAmount = 0;
+      var balanceBefore;
+      var balanceNow;
+
+      return web3.eth.getBalancePromise(receiver2)
       .then(balance => {
         balanceBefore = balance;
         return contractInstance.requestWithdraw({from: receiver2});
@@ -125,12 +141,8 @@ contract('Splitter', function(accounts) {
       })
       .then(balance => {
         balanceNow = balance;
+        sendAmount = amount/2;
         txFee = gasUsed * gasPrice;
-        console.log(
-          "Balance differnce: " + balanceNow.minus(balanceBefore) + "\n" +
-          "Amount - fee: " + (sendAmount - txFee) + "\n" +
-          "delta: " + balanceBefore.minus(balanceNow).plus(sendAmount).minus(txFee)
-        );
         assert.equal(balanceNow.toString(10), balanceBefore.plus(sendAmount).minus(txFee).toString(10), "Receiver2's balance did not return correctly");
       });
       //end test
