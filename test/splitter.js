@@ -19,8 +19,6 @@ contract('Splitter', function(accounts) {
   var receiver2 = accounts[3];
   var receiver3 = accounts[4];
 
-  var amount = web3.toWei(2, "ether");
-
   beforeEach(function() {
     return Splitter.new({ from: owner })
     .then(function(instance) {
@@ -33,25 +31,26 @@ contract('Splitter', function(accounts) {
   it("Should be owned by owner", function() {
     return contractInstance.owner({from: owner})
     .then(result => {
-      assert.equal(result, owner, "Contract is not owned by owner");
+      assert.strictEqual(result, owner, "Contract is not owned by owner");
     });
   });
 
   //members should be set
   it("Should be able to split amount amount two members", function() {
+    const sendAmount = 1000;
 
-    return contractInstance.splitMembers(receiver1, receiver2, {from: owner, value: amount})
+    return contractInstance.splitMembers(receiver1, receiver2, {from: owner, value: sendAmount})
     .then(result => {
       assert.equal(result.receipt.status, true, "splitMembers did not return true");
       return contractInstance.splitAmounts.call(receiver1, {from: owner});
     })
     .then(result => {
       //console.log("splitters: " + result[0] + "\n" + result[1]);
-      assert.equal(result, (amount / 2), "splitters did not return amount correctly");
+      assert.strictEqual(result.toString(10), (sendAmount / 2).toString(10), "splitters did not return sendAmount correctly");
       return contractInstance.splitAmounts.call(receiver2, {from: owner});
     })
     .then(result => {
-      assert.equal(result, amount / 2, "splitters did not return amount correctly");
+      assert.strictEqual(result.toString(10), (sendAmount / 2).toString(10), "splitters did not return sendAmount correctly");
     });
     //end test
   });
@@ -59,10 +58,8 @@ contract('Splitter', function(accounts) {
   describe("Check withdrawals", function() {
 
     beforeEach("Run the split", function() {
-      return contractInstance.splitMembers(receiver1, receiver2, {from: owner, value: amount})
-      .then( result => {
-        assert.equal(result.receipt.status, true, "splitMembers did not return true");;
-      });
+      const sendAmount = 1000;
+      return contractInstance.splitMembers(receiver1, receiver2, {from: owner, value: sendAmount});
     })
 
     it("Should withdraw first receipient's funds from the contract", function() {
@@ -70,7 +67,8 @@ contract('Splitter', function(accounts) {
       var gasPrice = 0;
       var gasUsed = 0;
       var txFee = 0;
-      var sendAmount = 0;
+      var sendAmount = 1000;
+      var receiveAmount = 0;
       var balanceBefore;
       var balanceNow;
 
@@ -91,27 +89,13 @@ contract('Splitter', function(accounts) {
       })
       .then(tx => {
         gasPrice = tx.gasPrice;
-        /*
-        console.log(
-          "gasPrice: " + gasPrice + "\n" +
-          "gasUsed: " + gasUsed
-        );
-        */
         return web3.eth.getBalancePromise(receiver1);
       })
       .then(balance => {
         balanceNow = balance;
-        sendAmount = amount/2;
+        receiveAmount = sendAmount/2;
         txFee = gasUsed * gasPrice;
-        /*
-        console.log(
-          "Balance differnce: " + balanceNow.minus(balanceBefore) + "\n" +
-          "Amount - fee: " + (sendAmount - txFee) + "\n" +
-          "delta: " + balanceNow.minus(balanceBefore).plus(sendAmount).minus(txFee) + "\n" +
-          "nuDelta: " + balanceBefore.minus(balanceNow).plus(sendAmount).minus(txFee)
-        );
-        */
-        assert.equal(balanceNow.toString(10), balanceBefore.plus(sendAmount).minus(txFee), "Receiver1's balance did not return correctly");
+        assert.strictEqual(balanceNow.toString(10), balanceBefore.plus(receiveAmount).minus(txFee).toString(10), "Receiver1's balance did not return correctly");
       });
       //end test
     });
@@ -121,7 +105,8 @@ contract('Splitter', function(accounts) {
       var gasPrice = 0;
       var gasUsed = 0;
       var txFee = 0;
-      var sendAmount = 0;
+      var sendAmount = 1000;
+      var receiveAmount = 0;
       var balanceBefore;
       var balanceNow;
 
@@ -141,9 +126,9 @@ contract('Splitter', function(accounts) {
       })
       .then(balance => {
         balanceNow = balance;
-        sendAmount = amount/2;
+        receiveAmount = sendAmount/2;
         txFee = gasUsed * gasPrice;
-        assert.equal(balanceNow.toString(10), balanceBefore.plus(sendAmount).minus(txFee).toString(10), "Receiver2's balance did not return correctly");
+        assert.equal(balanceNow.toString(10), balanceBefore.plus(receiveAmount).minus(txFee).toString(10), "Receiver2's balance did not return correctly");
       });
       //end test
     });
@@ -155,14 +140,15 @@ contract('Splitter', function(accounts) {
     var gasUsed = 0;
     var gasPrice = 0;
     var txFee = 0;
-    var sendAmount = 0;
+    var sendAmount = 1000;
+    var receiveAmount = 0;
     var balanceBefore;
     var balanceNow;
 
-    return contractInstance.splitMembers(receiver1, receiver2, {from: owner, value: amount})
+    return contractInstance.splitMembers(receiver1, receiver2, {from: owner, value: sendAmount})
     .then(result => {
       assert.equal(result.receipt.status, true, "splitMembers did not return true");
-      return contractInstance.splitMembers(receiver2, receiver3, {from: owner, value: amount});
+      return contractInstance.splitMembers(receiver2, receiver3, {from: owner, value: sendAmount});
     })
     .then(result => {
       assert.equal(result.receipt.status, true, "splitMembers did not return true");
@@ -185,8 +171,8 @@ contract('Splitter', function(accounts) {
     .then(balance => {
       balanceNow = balance;
       txFee = gasUsed * gasPrice;
-      sendAmount = (amount/2)*2;
-      assert.equal(balanceNow.toString(10), balanceBefore.plus(sendAmount).minus(txFee).toString(10), "Receiver2's balance did not return correctly");
+      receiveAmount = (sendAmount/2)*2;
+      assert.equal(balanceNow.toString(10), balanceBefore.plus(receiveAmount).minus(txFee).toString(10), "Receiver2's balance did not return correctly");
     });
     //end test
   });
@@ -217,8 +203,8 @@ contract('Splitter', function(accounts) {
   });
 
   it("Should not allow withdrawals when not running", function() {
-
-    return contractInstance.splitMembers(receiver1, receiver2, {from: owner, value: amount})
+    var sendAmount = 1000;
+    return contractInstance.splitMembers(receiver1, receiver2, {from: owner, value: sendAmount})
     .then(result => {
       assert.equal(result.receipt.status, true, "splitMembers did not return true");
       return contractInstance.runSwitch(0, {from: owner});
